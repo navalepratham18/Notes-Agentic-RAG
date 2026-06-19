@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Data Layer: Replicates Amazon OpenSearch Serverless
+  # ---------------------------------------------------------------------------
+  opensearch-node:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: agentic_rag_opensearch
+    environment:
+      - cluster.name=agentic-rag-cluster
+      - node.name=opensearch-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # Heap size constraints for local development
+      - DISABLE_SECURITY_PLUGIN=true             # Disables HTTPS/Auth to simplify local dev
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200" # REST API exposure
+      - "9600:9600" # Performance Analyzer exposure
+    networks:
+      - rag_network
+
+  # ---------------------------------------------------------------------------
+  # Memory & Cache Layer: Replicates AWS ElastiCache for Redis OSS
+  # ---------------------------------------------------------------------------
+  redis-cache:
+    image: redis/redis-stack:latest # Includes RedisInsight dashboard natively
+    container_name: agentic_rag_redis
+    ports:
+      - "6379:6379" # Redis standard port
+      - "8001:8001" # RedisInsight GUI port (open http://localhost:8001 in browser)
+    volumes:
+      - redis_data:/data
+    networks:
+      - rag_network
+
+  # ---------------------------------------------------------------------------
+  # Compute Layer: Replicates Containerized FastAPI Orchestrator on ECS
+  # ---------------------------------------------------------------------------
+  orchestrator-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    container_name: agentic_rag_orchestrator
+    ports:
+      - "8000:8000"
+    depends_on:
+      - opensearch-node
+      - redis-cache
+    environment:
+      - ENV=development
+      - REDIS_URL=redis://redis-cache:6379/0
+      - OPENSEARCH_HOST=opensearch-node
+      - OPENSEARCH_PORT=9200
+    networks:
+      - rag_network
+
+volumes:
+  opensearch_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  rag_network:
+    driver: bridge
