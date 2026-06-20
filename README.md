@@ -1,4 +1,4 @@
-sequenceDiagram
+``` sequenceDiagram
     participant User as User Browser
     participant Flask as Frontend (Flask)
     participant API as Orchestrator (FastAPI)
@@ -23,4 +23,4 @@ sequenceDiagram
     
     API-->>Flask: JSON Payload
     Note over Flask: Sanitize regex & <br/>parse Markdown
-    Flask-->>User: Rendered UI
+    Flask-->>User: Rendered UI ```
