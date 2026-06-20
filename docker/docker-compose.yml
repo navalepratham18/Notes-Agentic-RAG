@@ -61,6 +61,25 @@ services:
       - REDIS_URL=redis://redis-cache:6379/0
       - OPENSEARCH_HOST=opensearch-node
       - OPENSEARCH_PORT=9200
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Required to reach local Ollama
+    networks:
+      - rag_network
+
+  # ---------------------------------------------------------------------------
+  # Presentation Layer: Lightweight Flask Web Interface
+  # ---------------------------------------------------------------------------
+  frontend-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ui
+    container_name: agentic_rag_frontend
+    ports:
+      - "5000:5000"
+    depends_on:
+      - orchestrator-app
+    environment:
+      - BACKEND_URL=http://orchestrator-app:8000/v1/chat
     networks:
       - rag_network
 
